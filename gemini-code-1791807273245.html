@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>酪梨航空 Avocado Airlines - 訂票系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FullCalendar CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .fc-event { cursor: pointer; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+
+    <!-- 導覽列 -->
+    <nav class="bg-emerald-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('booking')">
+                <i class="fa-solid font-bold text-2xl text-lime-300">🥑</i>
+                <span class="font-bold text-xl tracking-wider">酪梨航空 Avocado Airlines</span>
+            </div>
+            <div class="flex space-x-4">
+                <button onclick="switchTab('booking')" class="px-3 py-2 rounded hover:bg-emerald-700 transition">
+                    <i class="fa-solid fa-plane-departure mr-1"></i> 線上訂票
+                </button>
+                <button id="nav-admin-btn" onclick="openAdminModal()" class="px-3 py-2 bg-emerald-800 rounded hover:bg-emerald-900 transition">
+                    <i class="fa-solid fa-user-gear mr-1"></i> 管理員登入
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要內容區 -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- 1. 前台訂票區塊 -->
+        <div id="section-booking" class="space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-100">
+                <h2 class="text-2xl font-bold text-emerald-800 mb-4"><i class="fa-solid fa-ticket mr-2"></i>搜尋與預訂機票</h2>
+                <form id="booking-form" onsubmit="handleBooking(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">選擇目的地區域</label>
+                        <select id="book-region" onchange="filterRoutesByRegion()" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500">
+                            <option value="ALL">全部區域</option>
+                            <option value="Northeast Asia">東北亞 (Northeast Asia)</option>
+                            <option value="China Region">中港澳 (China Region)</option>
+                            <option value="South East Asia">東南亞 (South East Asia)</option>
+                            <option value="Middle East / India">中東 / 印度 (Middle East / India)</option>
+                            <option value="Europe">歐洲 (Europe)</option>
+                            <option value="Oceania">大洋洲 (Oceania)</option>
+                            <option value="America">美洲 (America)</option>
+                            <option value="Africa">非洲 (Africa)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">選擇航班航線</label>
+                        <select id="book-route" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500">
+                            <!-- JS 動態生成 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">出發日期</label>
+                        <input type="date" id="book-date" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">乘客姓名</label>
+                        <input type="text" id="book-passenger" placeholder="例如：張小明" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="md:col-span-4 flex justify-end">
+                        <button type="submit" class="bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-emerald-700 transition shadow">
+                            確認訂票 <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 航點一覽表 -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-100 overflow-x-auto">
+                <h3 class="text-xl font-bold text-slate-700 mb-4"><i class="fa-solid fa-list mr-2"></i>酪梨航空航點總覽</h3>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 text-sm border-b">
+                            <th class="p-3">區域</th>
+                            <th class="p-3">代碼</th>
+                            <th class="p-3">城市</th>
+                            <th class="p-3">航班號</th>
+                            <th class="p-3">飛航日</th>
+                            <th class="p-3">機型</th>
+                            <th class="p-3">起飛時間 (TPE)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="routes-table-body" class="divide-y divide-slate-100 text-sm">
+                        <!-- 動態填入 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. 後台管理區塊 (登入後顯示) -->
+        <div id="section-admin" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow border border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-semibold">管理員權限</span>
+                    <h2 class="text-xl font-bold">後台管理控制台</h2>
+                </div>
+                <button onclick="adminLogout()" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> 登出
+                </button>
+            </div>
+
+            <!-- 後台 Tab 切換 -->
+            <div class="flex space-x-2 border-b border-slate-200">
+                <button id="btn-tab-calendar" onclick="switchAdminTab('calendar')" class="px-4 py-2 font-medium border-b-2 border-emerald-600 text-emerald-600">
+                    <i class="fa-regular fa-calendar-days mr-1"></i> 出發日曆 (訂票結果)
+                </button>
+                <button id="btn-tab-orders" onclick="switchAdminTab('orders')" class="px-4 py-2 font-medium text-slate-500 hover:text-slate-700">
+                    <i class="fa-solid fa-receipt mr-1"></i> 所有訂票紀錄
+                </button>
+                <button id="btn-tab-routes" onclick="switchAdminTab('routes')" class="px-4 py-2 font-medium text-slate-500 hover:text-slate-700">
+                    <i class="fa-solid fa-plane mr-1"></i> 航航線資料管理
+                </button>
+            </div>
+
+            <!-- 日曆面板 -->
+            <div id="admin-panel-calendar" class="bg-white p-6 rounded-xl shadow border border-slate-100">
+                <h3 class="text-lg font-bold mb-4 text-slate-700">出發日曆檢視</h3>
+                <div id="calendar"></div>
+            </div>
+
+            <!-- 訂票紀錄面板 -->
+            <div id="admin-panel-orders" class="hidden bg-white p-6 rounded-xl shadow border border-slate-100">
+                <h3 class="text-lg font-bold mb-4 text-slate-700">訂票紀錄列表</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 text-sm">
+                                <th class="p-3">訂單ID</th>
+                                <th class="p-3">乘客</th>
+                                <th class="p-3">航班編號</th>
+                                <th class="p-3">目的地</th>
+                                <th class="p-3">出發日期</th>
+                                <th class="p-3">起飛時間</th>
+                                <th class="p-3">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- 動態填入 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 航線管理面板 -->
+            <div id="admin-panel-routes" class="hidden bg-white p-6 rounded-xl shadow border border-slate-100 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-slate-700">航線列表與新增</h3>
+                    <button onclick="toggleAddRouteModal()" class="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700">
+                        <i class="fa-solid fa-plus mr-1"></i> 新增航線
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 text-sm">
+                                <th class="p-3">區域</th>
+                                <th class="p-3">代碼</th>
+                                <th class="p-3">城市</th>
+                                <th class="p-3">航班號</th>
+                                <th class="p-3">時間</th>
+                                <th class="p-3">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-routes-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- 動態填入 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Admin 登入彈窗 -->
+    <div id="login-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold text-slate-800">管理員登入</h3>
+                <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600">帳號</label>
+                    <input type="text" id="admin-user" required class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600">密碼</label>
+                    <input type="password" id="admin-pass" required class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <p class="text-xs text-slate-400">預設帳號：admin / 預設密碼：avocado123</p>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeAdminModal()" class="px-4 py-2 border rounded-lg hover:bg-slate-50">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">登入</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // 1. 預設航航線資料 (基於路線圖表格)
+        const defaultRoutes = [
+            { region: "Northeast Asia", code: "CTS", city: "Sapporo", flight: "AH 110", days: "Daily", aircraft: "A359", time: "8:00" },
+            { region: "Northeast Asia", code: "AKJ", city: "Asahikawa", flight: "AH 112", days: "1,3,5,7", aircraft: "32Q", time: "7:30" },
+            { region: "Northeast Asia", code: "HKD", city: "Hakkodate", flight: "AH 114", days: "1,3,5,6,7", aircraft: "32Q", time: "9:30" },
+            { region: "Northeast Asia", code: "SDJ", city: "Sendai", flight: "AH 116", days: "Daily", aircraft: "A339", time: "9:00" },
+            { region: "Northeast Asia", code: "HND (TSA)", city: "Tokyo Haneda", flight: "AH 150", days: "DailyX2", aircraft: "A339", time: "7:00/17:00" },
+            { region: "Northeast Asia", code: "NRT", city: "Tokyo Narita", flight: "AH 120", days: "DailyX2", aircraft: "A359/K", time: "8:00/18:00" },
+            { region: "Northeast Asia", code: "KIX", city: "Osaka Kansai", flight: "AH 130", days: "DailyX2", aircraft: "A359/A339", time: "8:30/11:00" },
+            { region: "Northeast Asia", code: "ICN", city: "Seoul(Incheon)", flight: "AH 146", days: "DailyX2", aircraft: "A359/32Q", time: "9:30/17:00" },
+            { region: "China Region", code: "PVG", city: "Shanghai", flight: "AH 1101", days: "1,4", aircraft: "A359", time: "10:30" },
+            { region: "China Region", code: "HKG", city: "Hong Kong", flight: "AH 601", days: "DailyX2", aircraft: "A3(3,5)9/32Q", time: "15:30/19:00" },
+            { region: "South East Asia", code: "SIN", city: "Singapore", flight: "AH 201", days: "DailyX2", aircraft: "A35K/32Q", time: "9:30/15:00" },
+            { region: "South East Asia", code: "BKK", city: "Bangkok", flight: "AH 205", days: "Daily", aircraft: "A359", time: "10:40" },
+            { region: "Middle East / India", code: "DXB", city: "Dubai", flight: "AH 252", days: "Daily", aircraft: "A359", time: "22:30" },
+            { region: "Europe", code: "CDG", city: "Paris", flight: "AH 302", days: "Daily", aircraft: "A339", time: "21:00" },
+            { region: "Europe", code: "LHR", city: "London", flight: "AH 300", days: "Daily", aircraft: "A339", time: "22:30" },
+            { region: "Oceania", code: "SYD", city: "Sydney", flight: "AH 401", days: "Daily", aircraft: "A359", time: "15:30" },
+            { region: "America", code: "LAX", city: "Los Angeles", flight: "AH01", days: "Daily", aircraft: "A359", time: "00:15" },
+            { region: "America", code: "JFK", city: "New York", flight: "AH10", days: "Daily", aircraft: "A359", time: "19:30" },
+            { region: "Africa", code: "EGG", city: "New Eggland", flight: "AH 701", days: "1,3,5", aircraft: "321NY", time: "19:25" }
+        ];
+
+        // 本地儲存資料初始化
+        let routes = JSON.parse(localStorage.getItem('avocado_routes')) || defaultRoutes;
+        let bookings = JSON.parse(localStorage.getItem('avocado_bookings')) || [
+            { id: 'ORD-101', passenger: '陳大明', flight: 'AH 120', city: 'Tokyo Narita', date: new Date().toISOString().split('T')[0], time: '8:00' }
+        ];
+        let isAdminLoggedIn = false;
+        let calendar = null;
+
+        // 初始化
+        window.onload = function() {
+            renderRoutesTable();
+            populateBookingOptions();
+            renderOrdersTable();
+            renderAdminRoutesTable();
+        };
+
+        // 切換頁面 Tab
+        function switchTab(tab) {
+            if (tab === 'admin' && !isAdminLoggedIn) {
+                openAdminModal();
+                return;
+            }
+
+            document.getElementById('section-booking').classList.toggle('hidden', tab !== 'booking');
+            document.getElementById('section-admin').classList.toggle('hidden', tab !== 'admin');
+
+            if (tab === 'admin' && !calendar) {
+                setTimeout(initCalendar, 100);
+            }
+        }
+
+        // 渲染航線表格 (前台)
+        function renderRoutesTable() {
+            const tbody = document.getElementById('routes-table-body');
+            tbody.innerHTML = routes.map(r => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs">${r.region}</span></td>
+                    <td class="p-3 font-semibold text-emerald-700">${r.code}</td>
+                    <td class="p-3">${r.city}</td>
+                    <td class="p-3 font-mono">${r.flight}</td>
+                    <td class="p-3">${r.days}</td>
+                    <td class="p-3 text-slate-500">${r.aircraft}</td>
+                    <td class="p-3">${r.time}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 下拉選單選航線
+        function populateBookingOptions() {
+            const region = document.getElementById('book-region').value;
+            const select = document.getElementById('book-route');
+            const filtered = region === 'ALL' ? routes : routes.filter(r => r.region === region);
+            
+            select.innerHTML = filtered.map(r => `
+                <option value="${r.flight}|${r.city}|${r.time}">
+                    ${r.flight} - ${r.city} (${r.code}) [起飛: ${r.time}]
+                </option>
+            `).join('');
+        }
+
+        function filterRoutesByRegion() {
+            populateBookingOptions();
+        }
+
+        // 處理訂票提交
+        function handleBooking(e) {
+            e.preventDefault();
+            const routeVal = document.getElementById('book-route').value;
+            const date = document.getElementById('book-date').value;
+            const passenger = document.getElementById('book-passenger').value;
+
+            if (!routeVal || !date || !passenger) return;
+
+            const [flight, city, time] = routeVal.split('|');
+            const newBooking = {
+                id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
+                passenger,
+                flight,
+                city,
+                date,
+                time
+            };
+
+            bookings.push(newBooking);
+            localStorage.setItem('avocado_bookings', JSON.stringify(bookings));
+            alert(`🎉 訂票成功！\n訂單編號：${newBooking.id}\n乘客：${passenger}\n航班：${flight} 往 ${city}\n出發日期：${date}`);
+
+            // 重置表單
+            document.getElementById('booking-form').reset();
+            populateBookingOptions();
+            
+            // 更新後台資料
+            renderOrdersTable();
+            if (calendar) calendar.refetchEvents();
+        }
+
+        // 管理員彈窗控制
+        function openAdminModal() {
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function closeAdminModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        // 管理員登入
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('admin-user').value;
+            const p = document.getElementById('admin-pass').value;
+
+            if (u === 'admin' && p === 'avocado123') {
+                isAdminLoggedIn = true;
+                closeAdminModal();
+                document.getElementById('nav-admin-btn').innerText = "進入後台控制頁";
+                document.getElementById('nav-admin-btn').onclick = () => switchTab('admin');
+                switchTab('admin');
+            } else {
+                alert('帳號或密碼錯誤！');
+            }
+        }
+
+        function adminLogout() {
+            isAdminLoggedIn = false;
+            document.getElementById('nav-admin-btn').innerHTML = `<i class="fa-solid fa-user-gear mr-1"></i> 管理員登入`;
+            document.getElementById('nav-admin-btn').onclick = openAdminModal;
+            switchTab('booking');
+        }
+
+        // 後台頁籤切換
+        function switchAdminTab(tab) {
+            document.getElementById('admin-panel-calendar').classList.toggle('hidden', tab !== 'calendar');
+            document.getElementById('admin-panel-orders').classList.toggle('hidden', tab !== 'orders');
+            document.getElementById('admin-panel-routes').classList.toggle('hidden', tab !== 'routes');
+
+            if (tab === 'calendar' && calendar) {
+                calendar.render();
+            }
+        }
+
+        // 初始化 FullCalendar 行事曆 (訂票結果)
+        function initCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'zh-tw',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    const events = bookings.map(b => ({
+                        id: b.id,
+                        title: `✈️ ${b.passenger} (${b.flight} -> ${b.city})`,
+                        start: `${b.date}T${b.time.split('/')[0]}:00`,
+                        backgroundColor: '#059669',
+                        borderColor: '#047857'
+                    }));
+                    successCallback(events);
+                },
+                eventClick: function(info) {
+                    alert('📌 訂票詳情:\n' + info.event.title);
+                }
+            });
+            calendar.render();
+        }
+
+        // 渲染後台訂票紀錄
+        function renderOrdersTable() {
+            const tbody = document.getElementById('orders-table-body');
+            tbody.innerHTML = bookings.map(b => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-mono text-xs font-bold text-slate-500">${b.id}</td>
+                    <td class="p-3 font-semibold">${b.passenger}</td>
+                    <td class="p-3 font-mono text-emerald-700">${b.flight}</td>
+                    <td class="p-3">${b.city}</td>
+                    <td class="p-3">${b.date}</td>
+                    <td class="p-3">${b.time}</td>
+                    <td class="p-3">
+                        <button onclick="deleteBooking('${b.id}')" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function deleteBooking(id) {
+            if (confirm('確定要刪除這筆訂購紀錄嗎？')) {
+                bookings = bookings.filter(b => b.id !== id);
+                localStorage.setItem('avocado_bookings', JSON.stringify(bookings));
+                renderOrdersTable();
+                if (calendar) calendar.refetchEvents();
+            }
+        }
+
+        // 渲染後台航線管理
+        function renderAdminRoutesTable() {
+            const tbody = document.getElementById('admin-routes-table-body');
+            tbody.innerHTML = routes.map((r, index) => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3">${r.region}</td>
+                    <td class="p-3 font-semibold">${r.code}</td>
+                    <td class="p-3">${r.city}</td>
+                    <td class="p-3 font-mono">${r.flight}</td>
+                    <td class="p-3">${r.time}</td>
+                    <td class="p-3">
+                        <button onclick="deleteRoute(${index})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function deleteRoute(index) {
+            if (confirm('確定要移除此航線嗎？')) {
+                routes.splice(index, 1);
+                localStorage.setItem('avocado_routes', JSON.stringify(routes));
+                renderRoutesTable();
+                renderAdminRoutesTable();
+                populateBookingOptions();
+            }
+        }
+    </script>
+</body>
+</html>
